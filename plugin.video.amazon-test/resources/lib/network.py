@@ -62,9 +62,18 @@ def getUA(blacklist=False):
         Log('Loading list of common UserAgents')
         # [{'pt': int perthousand, 'ua': 'useragent string', 'bw': 'detected browser': 'os': 'detected O/S'}, …]
         rj = getURL('http://www.skydubh.com/pub/useragents.json', rjson=True)
-        UAwlist = [ua['ua'] for ua in rj]
-    UAnew = UAwlist[randint(0, len(UAwlist) - 1)] if UAwlist else \
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36'
+        #UAwlist = [ua['ua'] for ua in rj]
+    #UAnew = UAwlist[randint(0, len(UAwlist) - 1)] if UAwlist else \
+        #'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36'
+        
+        #UAwlist = [{ua['pt'],ua['ua']} for ua in rj]
+
+    UAnew=''
+    try:
+        UAnew = rj[0]['ua']
+    except:
+        UAnew = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36'
+
     writeConfig('UserAgent', UAnew)
     Log('Using UserAgent: ' + UAnew)
     return
@@ -226,6 +235,7 @@ def getURLData(mode, asin, retformat='json', devicetypeid='AOAGZA014O5RE', versi
         url += '&videoMaterialType=' + vMT
         url += '&desiredResources=' + dRes
         url += '&supportedDRMKeyScheme=DUAL_KEY' if (not g.platform & g.OS_ANDROID) and ('PlaybackUrls' in dRes) else ''
+        #url += '&operatingSystemName=Windows'  #HD Content hack
     url += opt
     if retURL:
         return url
@@ -291,6 +301,7 @@ def MechanizeLogin():
         except:
             pass
 
+    Log('Login')
     return LogIn(False)
 
 
@@ -427,7 +438,6 @@ def LogIn(ask=True):
 
         g = Globals()
         s = Settings()
-        Log('Login')
         from .users import loadUser, addUser
         user = loadUser(empty=ask)
         email = user['email']

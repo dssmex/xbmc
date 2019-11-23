@@ -16,6 +16,7 @@ from .singleton import Singleton
 from .l10n import *
 from .configs import *
 
+
 # Usage:
 #   gs = Globals()/Settings()
 #   v = gs.attribute
@@ -33,7 +34,7 @@ class Globals(Singleton):
     OS_LINUX = 2
     OS_OSX = 4
     OS_ANDROID = 8
-    OS_LE = 16
+    OS_LE = 18
 
     is_addon = 'inputstream.adaptive'
     na = 'not available'
@@ -98,7 +99,7 @@ class Globals(Singleton):
 
         # Save the language code for HTTP requests and set the locale for l10n
         loc = getdefaultlocale()[0]
-        userAcceptLanguages = 'en-gb{}, en;q=0.5'
+        userAcceptLanguages = 'es-mx{}, en;q=0.5'
         self._globals['userAcceptLanguages'] = userAcceptLanguages.format('') if not loc else '{}, {}'.format(loc.lower().replace('_', '-'), userAcceptLanguages.format(';q=0.75'))
 
         self._globals['CONTEXTMENU_MULTIUSER'] = [
@@ -119,6 +120,7 @@ class Globals(Singleton):
                 r = bytes(str(r), 'utf-8')
             guid = hmac.new(r, uuid.uuid4().bytes, hashlib.sha224).hexdigest()
             writeConfig("GenDeviceID", guid)
+            
         return guid
 
     def InitialiseProvider(self, mid, burl, atv, pv):
@@ -137,6 +139,7 @@ class Globals(Singleton):
             from .amazontld import AmazonTLD
             if 'amz' not in self._globals:
                 self._globals['amz'] = AmazonTLD(self, Settings())
+
 
 
 class Settings(Singleton):
@@ -183,11 +186,7 @@ class Settings(Singleton):
         elif 'region' == name: return int(self._gs('region'))
         elif 'proxyaddress' == name: return getConfig('proxyaddress')
         elif 'subtitleStretch' == name: return self._gs('sub_stretch') == 'true'
-        elif 'subtitleStretchFactor' == name:
-            return [24 / 23.976, 23.976 / 24, 25 / 23.976, 23.976 / 25, 25.0 / 24.0, 24.0 / 25.0][int(self._gs('sub_stretch_factor'))]
         elif 'audioDescriptions' == name: return self._gs('audio_description') == 'true'
-        elif 'removePosters' == name: return self._gs('pv_episode_thumbnails') == 'true'
-        elif 'bypassProxy' == name: return self._gs('proxy_mpdalter') == 'false'
 
 
 def jsonRPC(method, props='', param=None):

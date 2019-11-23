@@ -39,8 +39,11 @@ def writeConfig(cfile, value):
             xbmcvfs.delete(cfglockfile)
             return True
         else:
-            l = xbmcvfs.File(cfglockfile)
-            modified = float(l.read())
-            l.close()
-            if time.time() - modified > 0.1:
-                xbmcvfs.delete(cfglockfile)
+            try:
+                l = xbmcvfs.File(cfglockfile)
+                modified = float(l.read())
+                l.close()
+                if time.time() - modified > 0.1:
+                    xbmcvfs.delete(cfglockfile)
+            except:
+                pass
