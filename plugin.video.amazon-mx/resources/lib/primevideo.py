@@ -1014,7 +1014,11 @@ class PrimeVideo(Singleton):
             # { "detail": { "detail": {…}, "headerDetail": {…} } }
             details = state['detail']
             
-            if 'detail' in details:
+            bMovie = False
+            if 'headerDetail' in details:
+                bMovie = True
+                details = details['headerDetail']
+            elif 'detail' in details:
                 details = details['detail']
                                       
             from json import dumps
@@ -1022,7 +1026,7 @@ class PrimeVideo(Singleton):
             for gti in sorted(details, key=lambda x: 'season' != details[x]['titleType']):
                 item = details[gti]
                 
-                if (gti not in GTIs):
+                if (gti not in GTIs) and not bMovie:
                     continue
                 
                 if (oid not in details) and (gti not in GTIs):  # Most likely (surely?) movie
