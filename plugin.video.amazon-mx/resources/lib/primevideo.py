@@ -519,10 +519,20 @@ class PrimeVideo(Singleton):
                 url += 'pv/browse/' + itemPathURI
             # Log('Encoded PrimeVideo URL: {}'.format(url), Log.DEBUG)
             item = xbmcgui.ListItem(title)
-
+           
+            # Actions
+            actions = []
             if bCanRefresh and (0 < len(itemPathURI)):
                 # Log('Encoded PrimeVideo refresh URL: pv/refresh/{}'.format(itemPathURI), Log.DEBUG)
-                item.addContextMenuItems([('Refresh', 'RunPlugin({}pv/refresh/{})'.format(self._g.pluginid, itemPathURI))])
+                actions.append(('Refresh', 'RunPlugin({}pv/refresh/{})'.format(self._g.pluginid, itemPathURI)))
+
+            if 'actions' in entry:
+                for a in entry['actions']:
+                    #Log('Encoded PrimeVideo actions "{}" URL: pv/action{}'.format(a['title'], a['url']))
+                    actions.append((a['title'], 'RunPlugin({}pv/action{})'.format(self._g.pluginid, a['url'])))
+
+            if 0 < len(actions):
+                item.addContextMenuItems(actions)
 
             # In case of tv shows find the oldest season and apply its art
             try:
@@ -569,6 +579,7 @@ class PrimeVideo(Singleton):
 
         # Set sort method and view
         # https://codedocs.xyz/xbmc/xbmc/group__python__xbmcplugin.html#ga85b3bff796fd644fb28f87b136025f40
+        '''
         xbmcplugin.addSortMethod(self._g.pluginhandle, [
             xbmcplugin.SORT_METHOD_NONE,  # Root
             xbmcplugin.SORT_METHOD_NONE,  # Category list
@@ -576,6 +587,15 @@ class PrimeVideo(Singleton):
             xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE,  # TV Show (Seasons list)
             xbmcplugin.SORT_METHOD_EPISODE,  # Season (Episodes list)
             xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE,  # Movies list
+        ][folderType] if None is forceSort else forceSort)
+        '''
+        xbmcplugin.addSortMethod(self._g.pluginhandle, [
+            xbmcplugin.SORT_METHOD_NONE,               # Root
+            xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE,   # Category list
+            xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE,   # Category
+            xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE,   # TV Show (Seasons list)
+            xbmcplugin.SORT_METHOD_EPISODE,            # Season (Episodes list)
+            xbmcplugin.SORT_METHOD_TITLE_IGNORE_THE,   # Movies list (keep web order)
         ][folderType] if None is forceSort else forceSort)
 
         if 'false' == self._g.addon.getSetting("viewenable"):
@@ -586,6 +606,11 @@ class PrimeVideo(Singleton):
             folderType = 0 if 2 > folderType else 2
 
         setContentAndView([None, 'videos', 'series', 'season', 'episode', 'movie'][folderType])
+        
+        #more Sort Methods for movies
+        if folderType == 5:
+            add
+        
 
     def Search(self):
         """ Provide search functionality for PrimeVideo """
@@ -654,6 +679,22 @@ class PrimeVideo(Singleton):
             for r in refreshes:
                 Log('Refresh params: {}'.format(r))
                 self._LazyLoad(r[0], r[1], r[2])
+                
+    def Action(self, sPath, param):
+        """ Provides actions functionality """        
+        sURL = '{0}/{1}{2}'.format(g.BaseUrl, sPath, param)
+        #login
+        amzLang = None
+        if None is not sURL:
+            # Find the locale amazon's using
+            cj = MechanizeLogin()
+            if cj:
+                amzLang = cj.get('lc-main-av', path='/')
+        amzLang = amzLang if amzLang else 'es_MX'        
+        
+        #get action
+        r = getURL(self._FQify(sURL), silent=True, useCookie=True, rjson=False, postdata=None)
+                
 
     def _LazyLoad(self, obj, breadcrumb=None, bCacheRefresh=False):
         """ Loader and parser of all the PrimeVideo.com queries """
@@ -773,8 +814,8 @@ class PrimeVideo(Singleton):
                     parent = pid
                     bUpdatedVideoData = True
             else:
-                Log('self._videodata[urn2gti][URN]: {}'.format(self._videodata['urn2gti'][urn]))
-                parent = self._videodata[self._videodata['urn2gti'][urn]]['parent']
+                if urn in self._videodata['urn2gti'] and 'parent' in self._videodata[self._videodata['urn2gti'][urn]]:
+                    parent = self._videodata[self._videodata['urn2gti'][urn]]['parent']
 
             bSeasonOnly = (not parent) or (oid == parent)
             if not bSeasonOnly:
@@ -833,80 +874,6 @@ class PrimeVideo(Singleton):
                                  
             return bUpdated            
             
-        def AddWatchlist(oid, o, item):
-            bUpdated = False
-        
-            #Get title
-            sTitle= None
-            if 'title' in item:
-                sTitle= item['title']
-            else:
-                Log('Unknown title in Watchlist: {}'.format(item))
-            sURL=None
-            if 'href' in item:
-                sURL= item['href']
-            else:
-                Log('Unknown link in Watchlist: {}'.format(item))
-            sThumbnail=None    
-            if 'imageSrc' in item:
-                sThumbnail= item['imageSrc']
-            else:
-                Log('Unknown Thumbnail in Watchlist: {}'.format(item))
-
-            sMediaType= None
-            sCompactGTI= None
-            if 'watchlistAction' in item and 'endpoint' in item['watchlistAction'] and 'query' in item['watchlistAction']['endpoint']:
-                if 'titleType' in item['watchlistAction']['endpoint']['query']:
-                    sMediaType= item['watchlistAction']['endpoint']['query']['titleType']
-                else:
-                    Log('Unknown MediaType in Watchlist: {}'.format(item))            
-                if 'titleID' in item['watchlistAction']['endpoint']['query']:
-                    sCompactGTI = item['watchlistAction']['endpoint']['query']['titleID']
-                else:
-                    Log('Unknown sCompactGTI in Watchlist: {}'.format(item))            
-                
-            sTitleID = None
-            if 'titleID' in item:
-                sTitleID= item['titleID']
-            else:
-                Log('Unknown TitleID in Watchlist: {}'.format(item))
-                
-            sPlot = None
-            if 'synopsis' in item:
-                sPlot= item['synopsis']
-            else:
-                Log('Unknown synopsis in Watchlist: {}'.format(item))
-
-            sMPAA = None
-            if 'maturityRating' in item and 'rating' in item['maturityRating']:
-                sMPAA= item['maturityRating']['rating']
-            else:
-                Log('Unknown Mature Raiting in Watchlist: {}'.format(item))
-                            
-                                       
-            o[sTitleID] = {
-                'title': self._BeautifyText(sTitle),
-                'lazyLoadURL': sURL,
-                'metadata': {
-                    'compactGTI' : sCompactGTI,
-                    'artmeta': {
-                        'thumb': sThumbnail,
-                        'poster': sThumbnail
-                    },
-                    'videometa': {
-                        'mediatype': sMediaType,
-                        'mpaa': sMPAA,
-                        'plot': sPlot
-                    }
-                }             
-            }   
-            
-            bUpdated = True
-            self._videodata[sTitleID] = o[sTitleID]
-            
-                     
-            return bUpdated
-
         def ParseSinglePage(oid, o, bCacheRefresh, data=None, url=None):
             """ Parse PrimeVideo.com single movie/season pages.
                 `url` is discarded in favour of `data`, if present.
@@ -1015,10 +982,12 @@ class PrimeVideo(Singleton):
             details = state['detail']
             
             bMovie = False
-            if 'headerDetail' in details:
+            if 'headerDetail' in details and details['headerDetail'][state['pageTitleId']]['titleType'].lower() in ['movie', 'episode', 'unknown']:            
+                #movies only need the header detail
                 bMovie = True
                 details = details['headerDetail']
             elif 'detail' in details:
+                #series need the details inside detail
                 details = details['detail']
                                       
             from json import dumps
@@ -1027,6 +996,7 @@ class PrimeVideo(Singleton):
                 item = details[gti]
                 
                 if (gti not in GTIs) and not bMovie:
+                    #movies take header details an can continue, series not because take detail section inside of detail section and add items in wron place
                     continue
                 
                 if (oid not in details) and (gti not in GTIs):  # Most likely (surely?) movie
@@ -1163,7 +1133,14 @@ class PrimeVideo(Singleton):
                             self._videodata[gti]['trailer'] = True
                             bUpdated = True
                             
-
+            if 'watchlist' in state and state['watchlist']:
+                for gti, c in state['watchlist'].items():
+                    if 'query' in c['endpoint']:
+                        query = ''
+                        query += '&'.join(['{}={}'.format(k, v) for k, v in c['endpoint']['query'].items()])
+                        self._videodata[gti]['actions'] = [{'title': c['text']['string'],'url': '{0}?{1}'.format(c['endpoint']['partialURL'], query)}]
+                        bUpdated = True
+                            
             return bUpdated
 
         #### Lazyload Begin ####
@@ -1242,13 +1219,41 @@ class PrimeVideo(Singleton):
                 if ('collections' in cnt):
                     for collection in cnt['collections']:
                         o[collection['webUid']] = {'title': self._BeautifyText(collection['text'])}
-                        if 'seeMoreLink' in collection:
+                        if ('facetImage' in collection):
+                            sDescripcion= ''                                                                
+                            if ('facetAlternateText' in collection):
+                                if ('facetText' in collection):
+                                    sDescription= '{0} {1}'.format(collection['facetText'], collection['facetAlternateText'])
+                                else:
+                                    sDescription=  collection['facetAlternateText']                                                                    
+                            if 'facetImage' in collection:
+                                sThumb = collection['facetImage']
+                            else:
+                                sThumb = ''                            
+                            o[collection['webUid']] = {
+                                'title': self._BeautifyText(collection['text']),
+                                'lazyLoadURL': '/search/ref={}'.format(collection['webUid']),
+                                'lazyLoadData': collection,
+                                'metadata': {
+                                    'artmeta': {
+                                        'thumb': sThumb                                        
+                                    },
+                                    'videometa': {
+                                        'mediatype': 'season',
+                                        'plot': sDescription
+                                    }
+                                }
+                            }
+                            Log('facetImage Collection: {}'.format(collection['text']), Log.DEBUG)
+                        elif 'seeMoreLink' in collection:
                             sThumb = ''
                             if 'facetImage' in collection:
                                 sThumb = collection['facetImage']
                             o[collection['webUid']] = {
                                 'title': self._BeautifyText(collection['text']),
-                                'lazyLoadURL': collection['seeMoreLink']['url'],
+                                #'lazyLoadURL': collection['seeMoreLink']['url'],
+                                'lazyLoadURL': '/search/ref={}'.format(collection['webUid']),
+                                'lazyLoadData': collection,
                                 'metadata': {
                                     'artmeta': {
                                         'thumb': sThumb                                        
@@ -1260,37 +1265,12 @@ class PrimeVideo(Singleton):
                                 }
                             }
                             Log('SeeMoreLink Collection: {}'.format(collection['text']), Log.DEBUG)
-                            
+                        
                         else:
-                            if ('facetImage' in collection):
-                                sDescripcion= ''                                                                
-                                if ('facetAlternateText' in collection):
-                                    if ('facetText' in collection):
-                                        sDescription= '{0} {1}'.format(collection['facetText'], collection['facetAlternateText'])
-                                    else:
-                                        sDescription=  collection['facetAlternateText']
-                                                                        
-                                o[collection['webUid']] = {
-                                    'title': self._BeautifyText(collection['text']),
-                                    'lazyLoadURL': '/search/ref={}'.format(collection['webUid']),
-                                    'lazyLoadData': collection,
-                                    'metadata': {
-                                        'artmeta': {
-                                            'thumb': collection['facetImage']                                        
-                                        },
-                                        'videometa': {
-                                            'mediatype': 'season',
-                                            'plot': sDescription
-                                        }
-                                    }
-                                }
-                                Log('facetImage Collection: {}'.format(collection['text']), Log.DEBUG)
-                            else:
-                                Log('Other Collection: {}'.format(collection['text']), Log.DEBUG)
-                                #Log('collection: {}'.format(collection))
-                                o[collection['webUid']] = {'title': collection['text']}  
-                                o[collection['webUid']]['lazyLoadURL'] = requestURL
-                                o[collection['webUid']]['lazyLoadData'] = collection
+                            Log('Other Collection: {}'.format(collection['text']), Log.DEBUG)
+                            o[collection['webUid']] = {'title': collection['text']}  
+                            o[collection['webUid']]['lazyLoadURL'] = requestURL
+                            o[collection['webUid']]['lazyLoadData'] = collection
                 else:
                     # Watchlist
                     if ('filters' in cnt):
@@ -1324,7 +1304,12 @@ class PrimeVideo(Singleton):
                                             
                         if iu <> '':                       
                             #Image
-                            img = item['imageSrc'] if 'imageSrc' in item else item['image']['url']
+                            if 'imageSrc' in item:
+                                img = item['imageSrc'] 
+                            elif 'image' in item and 'url' in item['image']:
+                                img = item['image']['url']
+                            else:
+                                img = ''
                             #season
                             try:
                                 t = item['watchlistAction']['endpoint']['query']['titleType'].lower()
@@ -1355,7 +1340,7 @@ class PrimeVideo(Singleton):
                             for item in cnt['content']['items']:
                                 Log('Found watchlist item: {}'.format(item['title']), Log.DEBUG)
                                 if item['watchlistAction']['endpoint']['query']['titleType'] == 'movie':
-                                    bUpdatedVideoData |= AddWatchlist(breadcrumb[-1], o, item)
+                                    bUpdatedVideoData |= ParseSinglePage(breadcrumb[-1], o, bCacheRefresh, url=item['href'])
                                 else:
                                     bUpdatedVideoData |= AddSeason(breadcrumb[-1], o, item['title'], item['imageSrc'], item['href'])
                                                     

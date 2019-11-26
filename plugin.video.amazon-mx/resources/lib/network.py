@@ -235,7 +235,6 @@ def getURLData(mode, asin, retformat='json', devicetypeid='AOAGZA014O5RE', versi
         url += '&videoMaterialType=' + vMT
         url += '&desiredResources=' + dRes
         url += '&supportedDRMKeyScheme=DUAL_KEY' if (not g.platform & g.OS_ANDROID) and ('PlaybackUrls' in dRes) else ''
-        #url += '&operatingSystemName=Windows'  #HD Content hack
     url += opt
     if retURL:
         return url
