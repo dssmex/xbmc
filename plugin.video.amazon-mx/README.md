@@ -1,8 +1,22 @@
 # Amazon Prime Video Addon for Kodi Media Center
 
-This addon supports amazon accounts from Germany, Japan, United Kingdom and United States (referred to as TLDs), as well as all countries supported by PrimeVideo.com (referred to as PrimeVideo, or PV).
+This addon supports amazon accounts from Germany, Japan, United Kingdom, United States (referred to as TLDs) and Mexico, as well as all countries supported by PrimeVideo.com (referred to as PrimeVideo, or PV).
 
 Widevine DRM protected streams are reproduced via `InputStream.Adaptive` henceforth referred to as IS.A.
+
+## Diferences with sandman79 repository
+
+This addon modification is for Amazon Prime Video in Mexico Market, i don't know if work in another countries (may be in anothers America Countries work too, you can test it).
+
+### New Features
+* Add My Channels menu
+* Play Live TV Channels like HBO (you need pay for this)
+* Add all categories in menus (in sandmand79 titles with same name are omited)
+* Add Channel Logos to menu to identify source (prime, hbo, starz, et)
+* Change plugin name to plugin.video.amazon-mx  (mx = Mexico market)
+
+### Tested in...
+For now, i only test this plugin in Kodi 18.4, under Windows and LibreElec 9.1.501.
 
 ## Disclaimer
 This addon is not officially commissioned or supported by Amazon, nor are authors associated with it. Amazon, Prime, Amazon Prime and Prime Video are trademarks registered by Amazon Technologies, inc.
@@ -13,6 +27,7 @@ This addon is not officially commissioned or supported by Amazon, nor are author
 * loads Covers and Fanart from TMDB/TVDB (TLD)
 * additional age verification (TLD/PV, requires IS.A)
 * fallback playack methods (TLD/PV, requires IS.A)
+* play Live TV Channels like HBO (paid)
 
 ## Known limitations
 * HD and FHD video quality are only available on hardware supported devices (Android devices/FireTV/Firesticks). To enable reproduction of such videos you need to enable `Override HDCP status` in IS.A settings, or use a different playback method
