@@ -348,8 +348,7 @@ class PrimeVideo(Singleton):
             if bRefresh and (i == (pathLen - 1)):
                 break
                 
-            # Populate children list to avoid favourite/library traversal errors
-            
+            # Populate children list to avoid favourite/library traversal errors            
             if 'children' in node:
                 for cid in node['children']:
                     if cid not in node:
@@ -446,11 +445,11 @@ class PrimeVideo(Singleton):
             from urllib.parse import quote_plus
         except ImportError:
             from urllib import quote_plus
-
+        
         node, breadcrumb = self._TraverseCatalog(path)
         if None is node:
             return
-
+            
         # Populate children list with empty references
         nodeName = breadcrumb[-1]
         if (nodeName in self._videodata) and ('children' in self._videodata[nodeName]):
@@ -753,7 +752,8 @@ class PrimeVideo(Singleton):
             if urn not in self._videodata['urn2gti']:
                 # Find the show the season belongs to
                 bUpdatedVideoData |= ParseSinglePage(oid, season, False, url=url)
-                seasonGTI = self._videodata['urn2gti'][urn]
+                if urn in self._videodata['urn2gti']:
+                    seasonGTI = self._videodata['urn2gti'][urn]
                 try:
                     # Query an episode to find its ancestors
                     family = getURLData('catalog/GetPlaybackResources', self._videodata[seasonGTI]['children'][0], silent=True, extra=True, useCookie=True,
@@ -787,7 +787,6 @@ class PrimeVideo(Singleton):
         def AddChannel(oid, o, title, thumbnail, url):
             """ Add channel descriptions """
             bUpdatedVideoData = True
-
             o[title] = {
                 'title': self._BeautifyText(title),
                 'lazyLoadURL': url,
@@ -800,7 +799,6 @@ class PrimeVideo(Singleton):
                     }
                 }
             }
-
             return bUpdatedVideoData
 
         def AddLiveChannel(oid, item):
@@ -1016,20 +1014,26 @@ class PrimeVideo(Singleton):
             # { "detail": { "detail": {…}, "headerDetail": {…} } }
             details = state['detail']
             
-            #detal for serie and headerDetail for movie
-            if 'headerDetail' in details:
-                if details['headerDetail'][state['pageTitleId']]['entityType'].lower() in [u'movie', u'episode', u'unknown']:
-                    details = details['headerDetail']
-                else:
-                    #Log('details: {}'.format(details))
-                    if 'detail' in details:
-                        details = details['detail']
-                
+            if 'detail' in details:
+                details = details['detail']
+                                      
             from json import dumps
             # Get details, seasons first
-            #for gti in sorted(details, key=lambda x: 'season' != details[x]['titleType']):
-            for gti in sorted(details, key=lambda x: 'season' != details[x]['titleType'].lower()):
+            for gti in sorted(details, key=lambda x: 'season' != details[x]['titleType']):
                 item = details[gti]
+                
+                if (gti not in GTIs):
+                    continue
+                
+                if (oid not in details) and (gti not in GTIs):  # Most likely (surely?) movie
+                    GTIs.append(gti)
+                    o[gti] = {}
+                if gti not in self._videodata:
+                    self._videodata[gti] = {}
+                vd = self._videodata[gti]
+                                        
+                item = details[gti]
+                        
                 #Log('details[gti][title]: {}'.format(details[gti]['title']))
                 if (oid not in details) and (gti not in GTIs):  # Most likely (surely?) movie
                     GTIs.append(gti)
@@ -1136,17 +1140,25 @@ class PrimeVideo(Singleton):
             # IMDB ratings — "imdb": {"amzn1.dv.gti.[…]": {"score": 8.5}}
             if ('imdb' in state) and state['imdb']:
                 for gti in state['imdb']:
-                    vmd = self._videodata[gti]['metadata']['videometa']
-                    if (bCacheRefresh or ('rating' not in vmd)) and ('score' in state['imdb'][gti]) and state['imdb'][gti]['score']:
-                        vmd['rating'] = state['imdb'][gti]['score']
-                        bUpdated = True
+                    if (gti not in GTIs):
+                        continue
+
+                    if gti in self._videodata:
+                        if not 'metadata' in self._videodata[gti]:
+                            self._videodata[gti]['metadata'] = {'videometa' : {}}
+                        vmd = self._videodata[gti]['metadata']['videometa']
+                        if (bCacheRefresh or ('rating' not in vmd)) and ('score' in state['imdb'][gti]) and state['imdb'][gti]['score']:
+                            vmd['rating'] = state['imdb'][gti]['score']
+                            bUpdated = True
 
             # Trailer — "trailer": {"amzn1.dv.gti.[…]": {"playbackID": "amzn1.dv.gti.[…]", "playbackURL": "/detail/[ShortGTI]/ref=atv_dp_watch_trailer?autoplay=trailer"}}
             if ('trailer' in state) and state['trailer']:
                 for gti in state['trailer']:
-                    if 'trailer' not in self._videodata[gti]:
-                        self._videodata[gti]['trailer'] = True
-                        bUpdated = True
+                    if gti in self._videodata:
+                        if 'trailer' not in self._videodata[gti]:
+                            self._videodata[gti]['trailer'] = True
+                            bUpdated = True
+                            
 
             return bUpdated
 
@@ -1227,13 +1239,15 @@ class PrimeVideo(Singleton):
                     for collection in cnt['collections']:
                         o[collection['webUid']] = {'title': self._BeautifyText(collection['text'])}
                         if 'seeMoreLink' in collection:
+                            sThumb = ''
+                            if 'facetImage' in collection:
+                                sThumb = collection['facetImage']
                             o[collection['webUid']] = {
                                 'title': self._BeautifyText(collection['text']),
                                 'lazyLoadURL': collection['seeMoreLink']['url'],
                                 'metadata': {
                                     'artmeta': {
-                                        'thumb': collection['facetImage']
-                                        
+                                        'thumb': sThumb                                        
                                     },
                                     'videometa': {
                                         'mediatype': 'season',
@@ -1251,9 +1265,10 @@ class PrimeVideo(Singleton):
                                         sDescription= '{0} {1}'.format(collection['facetText'], collection['facetAlternateText'])
                                     else:
                                         sDescription=  collection['facetAlternateText']
+                                                                        
                                 o[collection['webUid']] = {
                                     'title': self._BeautifyText(collection['text']),
-                                    'lazyLoadURL': '/search/ref={}'.format(self._BeautifyText(collection['text'])),
+                                    'lazyLoadURL': '/search/ref={}'.format(collection['webUid']),
                                     'lazyLoadData': collection,
                                     'metadata': {
                                         'artmeta': {
@@ -1317,7 +1332,7 @@ class PrimeVideo(Singleton):
                                     Log('Found Movie: {}'.format(title), Log.DEBUG)
                                     bUpdatedVideoData |= ParseSinglePage(breadcrumb[-1], o, bCacheRefresh, url=iu)
                                 else: #channel
-                                    Log('Found channel: {}'.format(title), Log.DEBUG)
+                                    Log('Found channel: {}'.format(title), Log.DEBUG)                
                                     bUpdatedVideoData |= AddChannel(breadcrumb[-1], o, title, img, iu)
                             else: #serie
                                 Log('Found serie: {}'.format(title), Log.DEBUG)
