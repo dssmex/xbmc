@@ -1138,8 +1138,10 @@ class PrimeVideo(Singleton):
                     if 'query' in c['endpoint']:
                         query = ''
                         query += '&'.join(['{}={}'.format(k, v) for k, v in c['endpoint']['query'].items()])
-                        self._videodata[gti]['actions'] = [{'title': c['text']['string'],'url': '{0}?{1}'.format(c['endpoint']['partialURL'], query)}]
-                        bUpdated = True
+                        try:
+                            self._videodata[gti]['actions'] = [{'title': c['text']['string'],'url': '{0}?{1}'.format(c['endpoint']['partialURL'], query)}]
+                            bUpdated = True
+                        except: pass
                             
             return bUpdated
 
